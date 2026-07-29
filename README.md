@@ -6,9 +6,6 @@ alternating between **solving** the current task with an evolving skill document
 and **curating** that document from the resulting trajectory before moving to the
 next task. Evaluated on ALFWorld, WebShop, and ScienceWorld.
 
-Thanks to [verl](https://github.com/volcengine/verl) and
-[verl-agent (GiGPO)](https://github.com/langfengQ/verl-agent).
-
 ## Method
 
 ![SkillRise method](method.png)
