@@ -21,16 +21,15 @@ the same role and position.
 
 ## Setup
 
-Follow the **verl-agent** guide to install the framework and environment backends:
-https://github.com/langfengQ/verl-agent
-
 ```bash
 pip install -r requirements.txt   # verl is vendored in verl/, no separate install
 ```
 
-Then set up the backends: ALFWorld (`pip install alfworld` + `alfworld-download`,
-set `ALFWORLD_DATA`), WebShop (Java 11 + `gym==0.26.2` + spaCy model),
-ScienceWorld (`pip install scienceworld gym` + JDK 11).
+Environment backends:
+
+- **ALFWorld** and **WebShop**: follow the
+  [verl-agent](https://github.com/langfengQ/verl-agent) setup.
+- **ScienceWorld**: follow the [BEACON](https://github.com/ZJU-REAL/BEACON) setup.
 
 ## Running
 
@@ -43,7 +42,7 @@ bash examples/skillrise_alfworld/grpo_alfworld_qwen3_4b.sh        # GRPO baselin
 ```
 
 Same layout for `skillrise_webshop/` and `skillrise_sciworld/`. Task sequences
-(K=3) are bundled under `data/groups/`.
+are bundled under `data/groups/`.
 
 ## Results
 
