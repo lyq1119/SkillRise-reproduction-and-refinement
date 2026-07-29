@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -x
 # Pure GRPO baseline on WebShop (1 attempt, no meta). Full config (8 GPUs/node).
-# group_size=24 so per-step rollout volume matches skillrise/lamer (16x8x3=384 task-plays).
+# group_size=24 so per-step rollout volume matches the SkillRise volume (16x8x3=384 task-plays).
 # val uses repeated attempts (val_num_attempts=3, no reflect) to report pass@1/2/3.
 ENGINE=${1:-vllm}
 shift 2>/dev/null || true

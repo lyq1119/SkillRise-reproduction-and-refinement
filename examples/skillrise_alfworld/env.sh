@@ -20,6 +20,9 @@ export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export NUMEXPR_NUM_THREADS=1
 
+# Some containers put an unreadable /root/bin on PATH; flashinfer/tvm_ffi tries to
+# stat every PATH entry and dies with PermissionError. Drop it defensively.
+export PATH=$(echo "$PATH" | tr ':' '\n' | grep -v '^/root/bin$' | tr '\n' ':' | sed 's/:$//')
 export RAY_IGNORE_UNHANDLED_ERRORS=1
 
 # ── Policy model (path to a local HF checkpoint, e.g. Qwen3-4B) ──

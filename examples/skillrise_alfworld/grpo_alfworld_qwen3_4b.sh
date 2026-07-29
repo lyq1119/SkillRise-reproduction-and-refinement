@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -x
-# Pure GRPO baseline (1 attempt, no meta). Full config aligned with SkillPilot
-# (8 GPUs/node). group_size=24 so per-step rollout volume matches LaMer/SkillRise (16x8x3=384 task-plays).
+# Pure GRPO baseline (1 attempt, no meta). Full config for 8 GPUs/node
+# (8 GPUs/node). group_size=24 so per-step rollout volume matches the SkillRise volume (16x8x3=384 task-plays).
 ENGINE=${1:-vllm}
 shift 2>/dev/null || true
 export VLLM_ATTENTION_BACKEND=FLASH_ATTN
@@ -10,7 +10,6 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/env.sh"
 
 pip3 install alfworld
-pip3 install debugpy
 
 project_name="verl_agent_alfworld_meta"
 TIMESTAMP="$(date +%Y%m%d%H%M%S)"

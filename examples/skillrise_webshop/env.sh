@@ -40,5 +40,9 @@ if ! python3 -c "import gym, spacy; assert tuple(map(int, gym.__version__.split(
     python3 -m spacy download en_core_web_sm 2>&1 | tail -1 || true
 fi
 
+# Some containers put an unreadable /root/bin on PATH; flashinfer/tvm_ffi tries to
+# stat every PATH entry and dies with PermissionError. Drop it defensively.
+export PATH=$(echo "$PATH" | tr ':' '\n' | grep -v '^/root/bin$' | tr '\n' ':' | sed 's/:$//')
+
 # ── Policy model (path to a local HF checkpoint, e.g. Qwen3-4B) ──
 export SKILLRISE_MODEL_PATH="${SKILLRISE_MODEL_PATH:-/path/to/Qwen3-4B}"

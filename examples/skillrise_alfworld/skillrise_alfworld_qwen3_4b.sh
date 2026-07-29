@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -x
 # SkillRise cross-task meta-RL (K=3 tasks/group, N=8 trials/group). Full training config
-# aligned with SkillPilot (8 GPUs/node). For a single-GPU smoke test see debug/.
+# for 8 GPUs/node.
 ENGINE=${1:-vllm}
 shift 2>/dev/null || true
 export VLLM_ATTENTION_BACKEND=FLASH_ATTN
@@ -10,7 +10,6 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/env.sh"
 
 pip3 install alfworld
-pip3 install debugpy
 
 # ── Model & naming ──
 project_name="verl_agent_alfworld_meta"

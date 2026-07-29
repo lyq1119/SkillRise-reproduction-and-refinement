@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -x
 # SkillRise cross-task meta-RL on WebShop (K=3 tasks/group, N=8 trials/group). Full training
-# config (8 GPUs/node). For a single-GPU smoke test see debug/debug_skillrise_k3.sh.
-# Per-step task-play volume = train_batch * N * K = 16 * 8 * 3 = 384 (matches lamer/grpo).
+# config (8 GPUs/node).sh.
+# Per-step task-play volume = train_batch * N * K = 16 * 8 * 3 = 384 (matches the GRPO baseline).
 ENGINE=${1:-vllm}
 shift 2>/dev/null || true
 export VLLM_ATTENTION_BACKEND=FLASH_ATTN
