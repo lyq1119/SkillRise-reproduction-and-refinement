@@ -55,3 +55,13 @@ ScienceWorld, outperforming prompting-based methods and RL baselines.
 
 Apache License 2.0 (derivative of verl / verl-agent). See [`LICENSE`](LICENSE) and
 [`NOTICE`](NOTICE).
+
+## 🤝 Acknowledgement
+
+This project builds on [veRL](https://github.com/volcengine/verl),
+[verl-agent](https://github.com/langfengQ/verl-agent),
+[BEACON](https://github.com/ZJU-REAL/BEACON),
+[ALFWorld](https://github.com/alfworld/alfworld),
+[WebShop](https://github.com/princeton-nlp/WebShop), and
+[ScienceWorld](https://github.com/allenai/ScienceWorld). We thank the authors of
+those projects.
