@@ -9,6 +9,16 @@ next task. Evaluated on ALFWorld, WebShop, and ScienceWorld.
 Built on top of [verl](https://github.com/volcengine/verl) /
 [verl-agent (GiGPO)](https://github.com/langfengQ/verl-agent).
 
+## Method
+
+![SkillRise method](method.png)
+
+SkillRise (a) constructs progressively challenging task sequences from the same
+task family, (b) rolls out a single policy that alternates Solve and Curate so the
+skill document evolves and transfers across tasks, and (c) uses decoupled
+cross-task credit assignment with group-relative advantages computed only within
+the same role and position.
+
 ## Setup
 
 Follow the **verl-agent** guide to install the framework and environment backends:
@@ -34,6 +44,13 @@ bash examples/skillrise_alfworld/grpo_alfworld_qwen3_4b.sh        # GRPO baselin
 
 Same layout for `skillrise_webshop/` and `skillrise_sciworld/`. Task sequences
 (K=3) are bundled under `data/groups/`.
+
+## Results
+
+![SkillRise results](result.png)
+
+SkillRise achieves the best overall results across ALFWorld, WebShop, and
+ScienceWorld, outperforming prompting-based methods and RL baselines.
 
 ## License
 
