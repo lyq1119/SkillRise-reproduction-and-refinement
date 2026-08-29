@@ -267,6 +267,11 @@ def main():
     ap.add_argument("--curate-via-api", action="store_true",
                     help="distill skill documents via DeepSeek API (B1) "
                          "instead of the Qwen vLLM engine")
+    ap.add_argument("--seed-file", default=None,
+                    help="D1: JSON file with per-row initial skills "
+                         "{\"train\": [skill, ...], \"val\": [skill, ...]} "
+                         "built by runtime/build_round2_seed.py; seeds env "
+                         "rows with round-1 skills (+lessons) instead of ''")
     args = ap.parse_args()
     output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -320,6 +325,12 @@ def main():
         max_model_len=cfg.inference.max_model_len,
         curate_via_api=args.curate_via_api, api_env=api_env)
     envs, val_envs = make_envs(cfg)
+    if args.seed_file:
+        seed = json.loads(Path(args.seed_file).read_text())
+        envs.initial_skills = seed.get("train", [])
+        val_envs.initial_skills = seed.get("val", [])
+        print(f"[d1] seeded train rows={len(envs.initial_skills)} "
+              f"val rows={len(val_envs.initial_skills)} from {args.seed_file}")
     started = time.time()
     try:
         _, train_logs = collector.multi_turn_loop(initial_batch(1, tokenizer, validate=False), policy, envs, is_train=False)

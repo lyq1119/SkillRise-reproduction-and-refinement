@@ -91,7 +91,16 @@ class SkillRiseSciWorldEnvironmentManager(EnvironmentManagerBase):
     def reset(self):
         for memory in self.memories:
             memory.reset(self.num_processes)
-        self.skills = ['' for _ in range(self.num_processes)]
+        # D1: carry round-1 skills into round-2 (and lessons, composed into
+        # the seed string). `initial_skills` is a per-row list set externally
+        # (e.g. by pure_rollout --seed-file); absent => start fresh.
+        if getattr(self, 'initial_skills', None):
+            self.skills = [
+                str(self.initial_skills[i]) if i < len(self.initial_skills) else ''
+                for i in range(self.num_processes)
+            ]
+        else:
+            self.skills = ['' for _ in range(self.num_processes)]
         self.curr_turn_idx = 0
         self.curr_pos = 0
 

@@ -228,6 +228,8 @@ def analyze_one(env, model, compact, max_step_skills):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-dir", required=True, help="pure_rollout run output dir")
+    ap.add_argument("--split", choices=["train", "val"], default="train",
+                    help="which trajectory split to analyze")
     ap.add_argument("--out", default=None, help="output jsonl path")
     ap.add_argument("--max-steps", type=int, default=40)
     ap.add_argument("--max-step-skills", type=int, default=5)
@@ -244,9 +246,10 @@ def main():
         sys.exit(1)
     model = env.get("DEEPSEEK_MODEL", "deepseek-chat")
 
-    train = load_jsonl(data_dir / "rollouts/traj_logs/train/rollout_000000.jsonl")
+    split_file = "train/rollout_000000.jsonl" if args.split == "train" else "val/rollout_000001.jsonl"
+    trajs = load_jsonl(data_dir / "rollouts/traj_logs" / split_file)
 
-    compacts = [compact_trajectory(log, max_steps=args.max_steps) for log in train]
+    compacts = [compact_trajectory(log, max_steps=args.max_steps) for log in trajs]
     for i, c in enumerate(compacts):
         print(f"[traj {i}] task={c['task'][:60]!r} reward={c['reward']} "
               f"play_steps={c['n_play_steps']} actions_shown={len(c['actions'])}")
@@ -257,13 +260,13 @@ def main():
                                     compacts[0]["actions"], args.max_step_skills))
         return
 
-    out_path = Path(args.out or data_dir / "opid_lessons.jsonl").resolve()
+    out_path = Path(args.out or data_dir / f"opid_lessons_{args.split}.jsonl").resolve()
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    results = [None] * len(train)
-    with ThreadPoolExecutor(max_workers=min(4, len(train))) as ex:
+    results = [None] * len(trajs)
+    with ThreadPoolExecutor(max_workers=min(4, len(trajs))) as ex:
         futures = {i: ex.submit(analyze_one, env, model, compacts[i], args.max_step_skills)
-                   for i in range(len(train))}
+                   for i in range(len(trajs))}
         for i, fut in futures.items():
             lesson = fut.result()
             results[i] = {
