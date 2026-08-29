@@ -113,23 +113,27 @@ class InferenceOnlyPolicy:
             "\n\nOutput ONLY the revised skill document inside "
             "<skill>...</skill> tags. Do not output anything else."
         )
-        try:
-            resp = self.curate_client.chat.completions.create(
-                model=self.curate_model,
-                messages=[
-                    {"role": "system",
-                     "content": "You are an expert skill curator for "
-                                "ScienceWorld agents. Follow the user's "
-                                "instruction exactly."},
-                    {"role": "user", "content": user_msg},
-                ],
-                temperature=0.3,
-                max_tokens=self.response_length,
-            )
-            return resp.choices[0].message.content or ""
-        except Exception as e:
-            print(f"[deepseek curate] error: {e}", file=sys.stderr)
-            return ""
+        last_err = None
+        for attempt in range(3):
+            try:
+                resp = self.curate_client.chat.completions.create(
+                    model=self.curate_model,
+                    messages=[
+                        {"role": "system",
+                         "content": "You are an expert skill curator for "
+                                    "ScienceWorld agents. Follow the user's "
+                                    "instruction exactly."},
+                        {"role": "user", "content": user_msg},
+                    ],
+                    temperature=0.3,
+                    max_tokens=self.response_length,
+                )
+                return resp.choices[0].message.content or ""
+            except Exception as e:
+                last_err = e
+                time.sleep(2 * (attempt + 1))
+        print(f"[deepseek curate] error after 3 retries: {last_err}", file=sys.stderr)
+        return ""
 
     @torch.inference_mode()
     def generate_sequences_agent(self, prompts):
