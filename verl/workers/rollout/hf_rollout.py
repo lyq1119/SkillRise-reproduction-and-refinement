@@ -50,6 +50,15 @@ class HFRollout(BaseRollout):
         output = DataProto.concat(output)
         return output
 
+    def generate_sequences_agent(self, prompts: DataProto) -> DataProto:
+        """HF fallback for the agent loop.
+
+        The agent loop keeps inactive rows for stable batch shapes. Generating
+        those rows is slower than vLLM's masked path but produces the same
+        tensors; the loop discards them according to ``active_masks``.
+        """
+        return self.generate_sequences(prompts)
+
     @torch.no_grad()
     def _generate_minibatch(self, prompts: DataProto) -> DataProto:
         # make sampling args can be overriden by inputs

@@ -39,7 +39,12 @@ from verl.utils.ulysses import gather_outpus_and_unpad, ulysses_pad_and_slice_in
 from verl.workers.actor import BasePPOActor
 
 if is_cuda_available:
-    from flash_attn.bert_padding import index_first_axis, pad_input, rearrange, unpad_input
+    try:
+        from flash_attn.bert_padding import index_first_axis, pad_input, rearrange, unpad_input
+    except ImportError:
+        # FlashAttention is only needed by the remove-padding path.  Keep the
+        # regular padded/SDPA actor usable on CUDA installations without it.
+        index_first_axis = pad_input = rearrange = unpad_input = None
 elif is_npu_available:
     from transformers.integrations.npu_flash_attention import index_first_axis, pad_input, rearrange, unpad_input
 
@@ -58,6 +63,8 @@ class DataParallelPPOActor(BasePPOActor):
         self.actor_optimizer = actor_optimizer
 
         self.use_remove_padding = self.config.get("use_remove_padding", False)
+        if self.use_remove_padding and unpad_input is None:
+            raise ImportError("use_remove_padding=True requires flash-attn")
         print(f"Actor use_remove_padding={self.use_remove_padding}")
         self.use_fused_kernels = self.config.get("use_fused_kernels", False)
         print(f"Actor use_fused_kernels={self.use_fused_kernels}")

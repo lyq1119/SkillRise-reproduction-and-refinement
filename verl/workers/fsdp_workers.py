@@ -15,6 +15,7 @@
 The main entry point to run the PPO algorithm
 """
 
+import importlib.util
 import logging
 import os
 import warnings
@@ -185,7 +186,12 @@ class ActorRolloutRefWorker(Worker):
         from torch import optim
         from torch.distributed.fsdp import CPUOffload, MixedPrecision
         from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-        from transformers import AutoConfig, AutoModelForCausalLM, AutoModelForVision2Seq
+        from transformers import AutoConfig, AutoModelForCausalLM
+        try:
+            from transformers import AutoModelForVision2Seq
+        except ImportError:
+            # Renamed in Transformers 5.x.
+            from transformers import AutoModelForImageTextToText as AutoModelForVision2Seq
 
         from verl.utils.model import get_generation_config, print_model_size, update_model_config
         from verl.utils.torch_dtypes import PrecisionType
@@ -207,7 +213,12 @@ class ActorRolloutRefWorker(Worker):
             torch_dtype = PrecisionType.to_dtype(torch_dtype)
 
         # override model kwargs
-        actor_model_config = AutoConfig.from_pretrained(local_path, trust_remote_code=trust_remote_code, attn_implementation="flash_attention_2")
+        attn_implementation = "flash_attention_2" if importlib.util.find_spec("flash_attn") is not None else "sdpa"
+        actor_model_config = AutoConfig.from_pretrained(
+            local_path,
+            trust_remote_code=trust_remote_code,
+            attn_implementation=attn_implementation,
+        )
                 
         # patch for kimi-vl
         if getattr(actor_model_config, "model_type", None) == "kimi_vl":
@@ -294,7 +305,11 @@ class ActorRolloutRefWorker(Worker):
 
         auto_wrap_policy = get_fsdp_wrap_policy(module=actor_module, config=fsdp_config.get("wrap_policy", None), is_lora=self.config.model.get('lora_rank', 0) > 0)
 
-        if self._is_rollout and self.config.rollout.name == "hf":
+        if (
+            self._is_rollout
+            and self.config.rollout.name == "hf"
+            and getattr(actor_model_config, "model_type", "").startswith("gemma")
+        ):
             # TODO(zhangchi.usc1992, shengguangming) fix me. Current, auto_wrap_policy causes HFRollout to hang in Gemma
             auto_wrap_policy = None
 
