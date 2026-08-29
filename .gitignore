@@ -242,3 +242,10 @@ rllm/eval/eval_configs-wy/*
 scripts/eval_scripts-wy/*
 retrieval_server.pid
 debug_runs/
+
+# Local strict-reproduction runtime artifacts
+runtime/cache/
+runtime/home/
+runtime/java/
+runtime/models/
+runtime/sources/
