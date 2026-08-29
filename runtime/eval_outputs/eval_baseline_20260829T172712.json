@@ -1,0 +1,15 @@
+{
+  "dry_run": true,
+  "structural": {
+    "n_train_trajectories": 8,
+    "n_val_trajectories": 8,
+    "skill_total": 16,
+    "skill_parse_rate": 0.625,
+    "skill_parse_failures": 6,
+    "skill_structure_complete_rate": 1.0,
+    "skill_real_doc_avg_len": 1530.7,
+    "train_solved_any_rate": 0.0,
+    "train_action_diversity": 0.821
+  },
+  "git_commit": "05d7c18e3378a3b77427045c8dad943ae60137d7"
+}
