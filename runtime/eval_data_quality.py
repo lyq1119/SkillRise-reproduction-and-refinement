@@ -26,6 +26,12 @@ import sys
 import time
 from pathlib import Path
 
+# DeepSeek goes DIRECT (bypass the intermittently-dead local proxy).
+for _k in ("NO_PROXY", "no_proxy"):
+    _cur = os.environ.get(_k, "")
+    if "api.deepseek.com" not in _cur:
+        os.environ[_k] = (_cur + "," if _cur else "") + "api.deepseek.com"
+
 # ---------------------------------------------------------------- #
 # Fixed rubrics (do NOT change between runs)
 # ---------------------------------------------------------------- #

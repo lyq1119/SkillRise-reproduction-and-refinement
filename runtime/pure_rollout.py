@@ -29,6 +29,12 @@ from agent_system.environments.skillrise_sciworld.group_loader import GroupLoade
 from agent_system.multi_turn_rollout import TrajectoryCollector
 from verl import DataProto
 
+# DeepSeek goes DIRECT (bypass the intermittently-dead local proxy).
+for _k in ("NO_PROXY", "no_proxy"):
+    _cur = os.environ.get(_k, "")
+    if "api.deepseek.com" not in _cur:
+        os.environ[_k] = (_cur + "," if _cur else "") + "api.deepseek.com"
+
 
 def load_env(env_path: Path) -> dict:
     env = {}

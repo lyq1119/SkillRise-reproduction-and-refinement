@@ -8,7 +8,16 @@ Used by pure_rollout.py (pre-flight + abort on outage) and
 opid_lessons.py (pre-flight + fail-loudly).
 """
 
+import os
 import time
+
+# DeepSeek goes DIRECT, never through the (sometimes dead) local proxy.
+# ALL_PROXY points at 127.0.0.1:10808 which is intermittently down; the API
+# itself is reachable directly. Append to any existing NO_PROXY.
+for _k in ("NO_PROXY", "no_proxy"):
+    _cur = os.environ.get(_k, "")
+    if "api.deepseek.com" not in _cur:
+        os.environ[_k] = (_cur + "," if _cur else "") + "api.deepseek.com"
 
 
 def check_deepseek(env, model=None, timeout: float = 10.0) -> bool:
