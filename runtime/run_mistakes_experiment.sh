@@ -34,7 +34,9 @@ BANK="$EXP_ROOT/mistakes_bank.json"
 ROLLOUT_N=3
 CURATE_FLAG="--curate-via-api"
 # train groups (one per type), pinned and non-overlapping with the val list
-declare -a GROUPS=(
+# NOTE: do NOT name this array GROUPS — GROUPS is a bash readonly builtin
+# (supplementary GIDs), so assigning it silently fails.
+declare -a TRAIN_GROUPS=(
   "measure-melting-point-unknown-substance_K3_0"
   "find-plant_K3_0"
   "inclined-plane-friction-named-surfaces_K3_0"
@@ -53,6 +55,10 @@ run_r1() { # $1=gid  -> echoes r1 dir
     local outdir
     outdir=$(bash runtime/run_pure_rollout.sh \
         --group-id "$gid" --val-tasks "$VAL_TASKS" --rollout-n "$ROLLOUT_N" $CURATE_FLAG 2>&1 | tail -1)
+    if [ ! -f "$outdir/manifest.json" ]; then
+        echo "[fatal] r1 run produced no manifest: $outdir" >&2
+        exit 1
+    fi
     echo "[r1] $gid -> $outdir" >&2
     grep -v -P "^$gid\t" "$STATE" 2>/dev/null > "$STATE.tmp" || true
     printf '%s\t%s\n' "$gid" "$outdir" >> "$STATE.tmp"
@@ -74,6 +80,10 @@ run_r2() { # $1=label; $2=gid; $3=seed-file -> echoes r2 dir
     outdir=$(bash runtime/run_pure_rollout.sh \
         --group-id "$gid" --val-tasks "$VAL_TASKS" --rollout-n "$ROLLOUT_N" \
         $CURATE_FLAG --seed-file "$seed" 2>&1 | tail -1)
+    if [ ! -f "$outdir/manifest.json" ]; then
+        echo "[fatal] r2 run produced no manifest: $outdir" >&2
+        exit 1
+    fi
     echo "[r2] $key -> $outdir" >&2
     echo "$key|$outdir" >> "$SUMMARY"
     echo "$outdir"
@@ -81,7 +91,7 @@ run_r2() { # $1=label; $2=gid; $3=seed-file -> echoes r2 dir
 
 # ---- shared round 1 ----
 declare -a R1_DIRS=()
-for gid in "${GROUPS[@]}"; do
+for gid in "${TRAIN_GROUPS[@]}"; do
     R1_DIRS+=("$(run_r1 "$gid")")
 done
 
@@ -103,8 +113,8 @@ done
 
 # ---- round 2 per condition per group ----
 for cond in "${CONDS[@]}"; do
-    for i in "${!GROUPS[@]}"; do
-        gid="${GROUPS[$i]}"
+    for i in "${!TRAIN_GROUPS[@]}"; do
+        gid="${TRAIN_GROUPS[$i]}"
         r1="${R1_DIRS[$i]}"
         seed="$EXP_ROOT/seed_${cond}_${gid##*_}.json"
         case "$cond" in
@@ -126,8 +136,8 @@ done
 # ---- aggregate r2 val pass@k per condition ----
 echo "=== round-2 val pass@k per condition (mean over 3 groups) ==="
 for cond in "${CONDS[@]}"; do
-    for i in "${!GROUPS[@]}"; do
-        gid="${GROUPS[$i]}"
+    for i in "${!TRAIN_GROUPS[@]}"; do
+        gid="${TRAIN_GROUPS[$i]}"
         r2=$(awk -F '\t' -v k="$cond|$gid" '$1==k {print $2}' "$SUMMARY" | head -1)
         echo "[$cond/$gid] $(basename "$r2")"
         $PY -c "
