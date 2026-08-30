@@ -38,8 +38,7 @@ sys.exit(0 if api_health.check_deepseek(load_env(Path('runtime/.env'))) else 1)
         echo "[rerun] API reachable and all 8 GPUs free at $(date)"
         break
     fi
-    echo "[rerun] $(date +%H:%M:%S) api=$([ $api_ok = 1 ] && echo ok || echo down) "
-         "gpus=$([ $gpu_ok = 1 ] && echo free || echo busy) — retrying in 60s"
+    echo "[rerun] $(date +%H:%M:%S) api=$([ $api_ok = 1 ] && echo ok || echo down) gpus=$([ $gpu_ok = 1 ] && echo free || echo busy) — retrying in 60s"
     sleep 60
 done
 
