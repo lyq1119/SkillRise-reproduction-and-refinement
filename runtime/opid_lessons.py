@@ -169,11 +169,8 @@ Episode context:
 # ------------------------------------------------------------------ #
 
 def deepseek_chat(env, model, prompt_text, max_tokens=1024, retries=3):
-    from openai import OpenAI
-    client = OpenAI(
-        api_key=env.get("DEEPSEEK_API_KEY", ""),
-        base_url=env.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1").rstrip("/"),
-    )
+    import api_health
+    client = api_health.make_deepseek_client(env)
     last_err = None
     for attempt in range(retries):
         try:

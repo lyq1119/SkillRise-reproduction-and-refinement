@@ -81,12 +81,9 @@ class InferenceOnlyPolicy:
         self.curate_model = "deepseek-chat"
         self._curate_failures = 0  # consecutive failed curate calls (E1)
         if curate_via_api:
-            from openai import OpenAI
+            import api_health
             api_env = api_env or {}
-            self.curate_client = OpenAI(
-                api_key=api_env.get("DEEPSEEK_API_KEY", ""),
-                base_url=api_env.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1").rstrip("/"),
-            )
+            self.curate_client = api_health.make_deepseek_client(api_env)
             self.curate_model = api_env.get("DEEPSEEK_MODEL", "deepseek-chat")
         if tensor_parallel_size != 1:
             raise ValueError("explicit inference pool requires tensor_parallel_size=1")

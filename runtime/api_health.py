@@ -20,15 +20,27 @@ for _k in ("NO_PROXY", "no_proxy"):
         os.environ[_k] = (_cur + "," if _cur else "") + "api.deepseek.com"
 
 
+def make_deepseek_client(env, timeout: float = 600.0):
+    """OpenAI client that ALWAYS goes DIRECT to DeepSeek.
+
+    The shell env exports ALL_PROXY=socks5://127.0.0.1:10808 (a local SOCKS5
+    proxy that is intermittently dead); httpx honors it by default, so requests
+    fail in a way that looks like "DeepSeek API down". trust_env=False makes
+    this client ignore every proxy env var regardless of NO_PROXY matching.
+    """
+    import httpx
+    from openai import OpenAI
+    return OpenAI(
+        api_key=env.get("DEEPSEEK_API_KEY", ""),
+        base_url=env.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1").rstrip("/"),
+        http_client=httpx.Client(trust_env=False, timeout=timeout),
+    )
+
+
 def check_deepseek(env, model=None, timeout: float = 10.0) -> bool:
     """Return True if the DeepSeek API answers a 1-token ping."""
     try:
-        from openai import OpenAI
-        client = OpenAI(
-            api_key=env.get("DEEPSEEK_API_KEY", ""),
-            base_url=env.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1").rstrip("/"),
-            timeout=timeout,
-        )
+        client = make_deepseek_client(env, timeout=timeout)
         client.chat.completions.create(
             model=model or env.get("DEEPSEEK_MODEL", "deepseek-chat"),
             messages=[{"role": "user", "content": "ping"}],
