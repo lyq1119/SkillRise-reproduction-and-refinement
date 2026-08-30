@@ -73,7 +73,7 @@ run_r2() { # $1=label; $2=gid; $3=seed-file -> echoes r2 dir
     local key="$label|$gid"
     local existing=""
     if [ -f "$SUMMARY" ]; then
-        existing=$(awk -F '\t' -v k="$key" '$1==k {print $2}' "$SUMMARY" | head -1)
+        existing=$(awk -F '|' -v l="$label" -v g="$gid" '$1==l && $2==g {print $3}' "$SUMMARY" | head -1)
     fi
     if [ -n "$existing" ] && [ -f "$existing/manifest.json" ]; then
         echo "[r2] reusing $key -> $existing" >&2
@@ -146,7 +146,7 @@ echo "=== round-2 val pass@k per condition (mean over 3 groups) ==="
 for cond in "${CONDS[@]}"; do
     for i in "${!TRAIN_GROUPS[@]}"; do
         gid="${TRAIN_GROUPS[$i]}"
-        r2=$(awk -F '\t' -v k="$cond|$gid" '$1==k {print $2}' "$SUMMARY" | head -1)
+        r2=$(awk -F '|' -v l="$cond" -v g="$gid" '$1==l && $2==g {print $3}' "$SUMMARY" | head -1)
         echo "[$cond/$gid] $(basename "$r2")"
         $PY -c "
 import json
