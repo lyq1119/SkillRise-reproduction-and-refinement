@@ -88,10 +88,19 @@ print(f'  pass@1={sum(m[\"pass@1\"])}/8  pass@2={sum(m[\"pass@2\"])}/8  pass@3={
     echo "$cond|$r1|$r2" >> "$SUMMARY"
 }
 
-condition baseline_x2 "" 0
-condition baseline_lesson_x2 "" 1
-condition b1_x2 "--curate-via-api" 0
-condition b1_lesson_x2 "--curate-via-api" 1
+CONDITIONS=("$@")
+if [ ${#CONDITIONS[@]} -eq 0 ]; then
+    CONDITIONS=(baseline_x2 baseline_lesson_x2 b1_x2 b1_lesson_x2)
+fi
+for c in "${CONDITIONS[@]}"; do
+    case "$c" in
+        baseline_x2)         condition baseline_x2 "" 0 ;;
+        baseline_lesson_x2)  condition baseline_lesson_x2 "" 1 ;;
+        b1_x2)               condition b1_x2 "--curate-via-api" 0 ;;
+        b1_lesson_x2)        condition b1_lesson_x2 "--curate-via-api" 1 ;;
+        *) echo "unknown condition: $c"; exit 1 ;;
+    esac
+done
 
 echo "=== all done $(date) ==="
 echo "summary: $SUMMARY"
