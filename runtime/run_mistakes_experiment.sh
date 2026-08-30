@@ -45,8 +45,10 @@ declare -a CONDS=(control lesson mistakes)
 
 run_r1() { # $1=gid  -> echoes r1 dir
     local gid=$1
-    local existing
-    existing=$(awk -F '\t' -v g="$gid" '$1==g {print $2}' "$STATE" 2>/dev/null | head -1)
+    local existing=""
+    if [ -f "$STATE" ]; then
+        existing=$(awk -F '\t' -v g="$gid" '$1==g {print $2}' "$STATE" | head -1)
+    fi
     if [ -n "$existing" ] && [ -f "$existing/manifest.json" ]; then
         echo "[r1] reusing $gid -> $existing" >&2
         echo "$existing"; return
@@ -69,8 +71,10 @@ run_r1() { # $1=gid  -> echoes r1 dir
 run_r2() { # $1=label; $2=gid; $3=seed-file -> echoes r2 dir
     local label=$1; local gid=$2; local seed=$3
     local key="$label|$gid"
-    local existing
-    existing=$(awk -F '\t' -v k="$key" '$1==k {print $2}' "$SUMMARY" 2>/dev/null | head -1)
+    local existing=""
+    if [ -f "$SUMMARY" ]; then
+        existing=$(awk -F '\t' -v k="$key" '$1==k {print $2}' "$SUMMARY" | head -1)
+    fi
     if [ -n "$existing" ] && [ -f "$existing/manifest.json" ]; then
         echo "[r2] reusing $key -> $existing" >&2
         echo "$existing"; return
