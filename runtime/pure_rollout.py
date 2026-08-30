@@ -294,12 +294,15 @@ def main():
         api_env = load_env(Path(__file__).resolve().parent / ".env")
         if not api_env.get("DEEPSEEK_API_KEY"):
             raise SystemExit("--curate-via-api requires DEEPSEEK_API_KEY in runtime/.env")
-        # E1: pre-flight check before the ~10 min engine init.
+        # E1: pre-flight check before the ~10 min engine init. Wait up to
+        # 10 min for a flaky-but-recovering API rather than aborting on a
+        # single blip.
         import api_health
-        if not api_health.check_deepseek(api_env):
+        if not api_health.wait_until_ready(api_env, timeout_seconds=600):
             raise SystemExit(
-                "[d1] DeepSeek API unreachable at start — aborting before "
-                "engine init to avoid a corrupted run. Re-run when API is back.")
+                "[d1] DeepSeek API unreachable for 10 min at start — aborting "
+                "before engine init to avoid a corrupted run. Re-run when API "
+                "is stable.")
 
     cfg = OmegaConf.create({
         "data": {"train_batch_size": 1, "val_batch_size": 8,

@@ -251,10 +251,12 @@ def main():
 
     if not args.dry_run:
         import api_health
-        if not api_health.check_deepseek(env, model=model):
+        # Wait up to 10 min for a flaky-but-recovering API before giving up.
+        if not api_health.wait_until_ready(env, model=model, timeout_seconds=600):
             raise SystemExit(
-                "[opid_lessons] DeepSeek API unreachable at start — aborting "
-                "to avoid writing empty lessons. Re-run when the API is back.")
+                "[opid_lessons] DeepSeek API unreachable for 10 min at start — "
+                "aborting to avoid writing empty lessons. Re-run when the API "
+                "is stable.")
 
     split_file = "train/rollout_000000.jsonl" if args.split == "train" else "val/rollout_000001.jsonl"
     trajs = load_jsonl(data_dir / "rollouts/traj_logs" / split_file)
