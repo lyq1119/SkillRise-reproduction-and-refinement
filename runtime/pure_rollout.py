@@ -174,11 +174,15 @@ class InferenceOnlyPolicy:
                 for i, token_ids in ex.map(_one, active_indices):
                     generated[i] = token_ids
         else:
-            for slot, i in enumerate(active_indices):
-                self.workers[slot][1].send((i, raw_ids[i], validate))
-            for slot, _ in enumerate(active_indices):
-                i, token_ids = self.workers[slot][1].recv()
-                generated[i] = token_ids
+            # EX: val batches can exceed data_parallel_size (e.g. 12 pinned val
+            # tasks vs 8 workers) — chunk the active rows across the workers.
+            for start in range(0, len(active_indices), len(self.workers)):
+                chunk = active_indices[start:start + len(self.workers)]
+                for slot, i in enumerate(chunk):
+                    self.workers[slot][1].send((i, raw_ids[i], validate))
+                for slot, _ in enumerate(chunk):
+                    i, token_ids = self.workers[slot][1].recv()
+                    generated[i] = token_ids
 
         rows = [generated.get(i, []) for i in range(len(active))]
         pad = self.tokenizer.pad_token_id
