@@ -185,8 +185,11 @@ def deepseek_chat(env, model, prompt_text, max_tokens=1024, retries=3):
         except Exception as e:
             last_err = e
             time.sleep(2 * (attempt + 1))
-    print(f"[opid_lessons] error after {retries} retries: {last_err}", file=sys.stderr)
-    return ""
+    # E1: fail loudly — empty lessons would silently corrupt the +lesson seed.
+    raise SystemExit(
+        f"[opid_lessons] DeepSeek API unreachable after {retries} retries "
+        f"(last error: {last_err}) — aborting to avoid writing empty lessons. "
+        "Re-run when the API is back.")
 
 
 def parse_lesson_response(response: str) -> dict:
@@ -245,6 +248,13 @@ def main():
         print("[fatal] DEEPSEEK_API_KEY not set in runtime/.env", file=sys.stderr)
         sys.exit(1)
     model = env.get("DEEPSEEK_MODEL", "deepseek-chat")
+
+    if not args.dry_run:
+        import api_health
+        if not api_health.check_deepseek(env, model=model):
+            raise SystemExit(
+                "[opid_lessons] DeepSeek API unreachable at start — aborting "
+                "to avoid writing empty lessons. Re-run when the API is back.")
 
     split_file = "train/rollout_000000.jsonl" if args.split == "train" else "val/rollout_000001.jsonl"
     trajs = load_jsonl(data_dir / "rollouts/traj_logs" / split_file)

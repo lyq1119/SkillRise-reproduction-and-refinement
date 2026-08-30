@@ -73,6 +73,7 @@ class InferenceOnlyPolicy:
         self.curate_via_api = curate_via_api
         self.curate_client = None
         self.curate_model = "deepseek-chat"
+        self._curate_failures = 0  # consecutive failed curate calls (E1)
         if curate_via_api:
             from openai import OpenAI
             api_env = api_env or {}
@@ -114,7 +115,10 @@ class InferenceOnlyPolicy:
             "<skill>...</skill> tags. Do not output anything else."
         )
         last_err = None
-        for attempt in range(3):
+        # E1: escalate backoff inside a call; abort the run if the API is
+        # down across several consecutive curate points (avoid producing a
+        # silently-degraded run like the night of 2026-08-29/30).
+        for attempt in range(5):
             try:
                 resp = self.curate_client.chat.completions.create(
                     model=self.curate_model,
@@ -128,11 +132,19 @@ class InferenceOnlyPolicy:
                     temperature=0.3,
                     max_tokens=self.response_length,
                 )
+                self._curate_failures = 0
                 return resp.choices[0].message.content or ""
             except Exception as e:
                 last_err = e
-                time.sleep(2 * (attempt + 1))
-        print(f"[deepseek curate] error after 3 retries: {last_err}", file=sys.stderr)
+                time.sleep(5 * (attempt + 1))
+        self._curate_failures += 1
+        if self._curate_failures >= 5:
+            raise SystemExit(
+                "[deepseek curate] DeepSeek API unreachable across "
+                f"{self._curate_failures} consecutive curate calls "
+                f"(last error: {last_err}) — aborting run to avoid corrupted "
+                "data. Re-run when the API is back (experiment is resumable).")
+        print(f"[deepseek curate] error after 5 retries: {last_err}", file=sys.stderr)
         return ""
 
     @torch.inference_mode()
@@ -282,6 +294,12 @@ def main():
         api_env = load_env(Path(__file__).resolve().parent / ".env")
         if not api_env.get("DEEPSEEK_API_KEY"):
             raise SystemExit("--curate-via-api requires DEEPSEEK_API_KEY in runtime/.env")
+        # E1: pre-flight check before the ~10 min engine init.
+        import api_health
+        if not api_health.check_deepseek(api_env):
+            raise SystemExit(
+                "[d1] DeepSeek API unreachable at start — aborting before "
+                "engine init to avoid a corrupted run. Re-run when API is back.")
 
     cfg = OmegaConf.create({
         "data": {"train_batch_size": 1, "val_batch_size": 8,
