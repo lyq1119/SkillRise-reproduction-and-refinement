@@ -16,19 +16,32 @@ LOG="$SKILLRISE_ROOT/runtime/outputs/rerun_corrupted_${TS}.log"
 exec > >(tee -a "$LOG") 2>&1
 echo "=== corrupted-condition re-run started $(date) ==="
 
-# ---- wait for DeepSeek API (poll every 60s, indefinitely) ----
-echo "[rerun] waiting for DeepSeek API..."
-while ! $PY -c "
+# ---- wait for DeepSeek API (poll every 60s, indefinitely) AND for all 8
+#      GPUs to be free (hard user requirement) ----
+gpus_free() {
+    nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv,noheader 2>/dev/null | \
+        awk -F', ' '{u=$1+0; m=$2+0; if (u > 5 || m > 500) bad=1} END {exit bad?1:0}'
+}
+
+echo "[rerun] waiting for DeepSeek API + all-8-GPUs-free..."
+while true; do
+    api_ok=0; gpu_ok=0
+    $PY -c "
 import sys; sys.path.insert(0, 'runtime')
 from pathlib import Path
 from pure_rollout import load_env
 import api_health
 sys.exit(0 if api_health.check_deepseek(load_env(Path('runtime/.env'))) else 1)
-"; do
-    echo "[rerun] $(date +%H:%M:%S) API not reachable — retrying in 60s"
+" && api_ok=1 || true
+    gpus_free && gpu_ok=1 || true
+    if [ "$api_ok" = "1" ] && [ "$gpu_ok" = "1" ]; then
+        echo "[rerun] API reachable and all 8 GPUs free at $(date)"
+        break
+    fi
+    echo "[rerun] $(date +%H:%M:%S) api=$([ $api_ok = 1 ] && echo ok || echo down) "
+         "gpus=$([ $gpu_ok = 1 ] && echo free || echo busy) — retrying in 60s"
     sleep 60
 done
-echo "[rerun] DeepSeek API reachable at $(date)"
 
 # ---- drop round-1 state entries whose dir has no manifest (e.g. an abort
 #      message or a partial run) — valid r1 dirs are reused by the harness.
