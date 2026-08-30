@@ -97,9 +97,13 @@ done
 
 # ---- build failure knowledge from the shared r1 ----
 echo "=== building failure knowledge ==="
-$PY runtime/build_mistakes_bank.py \
-    --data-dirs "$(IFS=,; echo "${R1_DIRS[*]}")" \
-    --out "$BANK" || { echo "[fatal] build_mistakes_bank failed"; exit 1; }
+if [ -f "$BANK" ]; then
+    echo "[bank] reusing existing $BANK"
+else
+    $PY runtime/build_mistakes_bank.py \
+        --data-dirs "$(IFS=,; echo "${R1_DIRS[*]}")" \
+        --out "$BANK" || { echo "[fatal] build_mistakes_bank failed"; exit 1; }
+fi
 
 # lessons are per-group; extract for each r1 dir
 declare -a LESSONS_TRAIN=()

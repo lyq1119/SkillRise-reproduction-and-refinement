@@ -154,7 +154,7 @@ def build_strategic_prompt(episode):
     traj = "\n".join(episode["actions"]) or "(empty)"
     return f"""{STRATEGIC_GUIDELINES_PROMPT}
 
-Task: {episode['task']}
+Task: {episode['goal']}
 Outcome: {outcome}
 Interaction trajectory (action per step):
 {traj}
@@ -273,6 +273,7 @@ def main():
                     failures_by_type[task_type].append({
                         "task_type": task_type,
                         "goal": ep["task"],
+                        "reward": ep["reward"],
                         "actions": ep["actions"],
                     })
 
@@ -284,7 +285,7 @@ def main():
         for t, f in sorted(failures_by_type.items()):
             print(f"\n[dry-run] type={t} first failure strategic prompt:")
             print(build_strategic_prompt({
-                "task": f[0]["goal"], "reward": 0.0, "actions": f[0]["actions"]})[:400])
+                "goal": f[0]["goal"], "reward": 0.0, "actions": f[0]["actions"]})[:400])
             print(f"[dry-run] type={t} mistakes prompt:")
             print(build_mistakes_prompt(t, f, args.mistakes_per_type)[:400])
         return
