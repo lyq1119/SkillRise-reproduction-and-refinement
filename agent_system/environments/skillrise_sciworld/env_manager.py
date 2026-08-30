@@ -325,6 +325,8 @@ def make_envs(config):
 
     group_file = os.path.expandvars(config.env.get('group_file'))
     train_loader = GroupLoader(group_file, groups_per_chunk, seed=config.env.seed)
+    if config.env.get('group_id'):
+        train_loader.get_group(config.env.group_id)
     assert train_loader.K == num_attempts, (
         f"group K({train_loader.K}) != env.num_attempts({num_attempts})"
     )
@@ -339,9 +341,14 @@ def make_envs(config):
     envs.groups_per_chunk = groups_per_chunk
 
     # VAL: repeat mode (same held-out task retried K times from the test split).
+    val_env_kwargs = dict(env_kwargs)
+    if config.env.get('val_pairs'):
+        # EX: explicit pinned held-out task list instead of seed-sampling.
+        val_env_kwargs['val_pairs'] = [
+            [int(t[0]), int(t[1])] for t in config.env.val_pairs]
     _val_envs = build_skillrise_sciworld_envs(
         seed=config.env.seed + 1000, env_num=config.data.val_batch_size, group_n=1,
-        resources_per_worker=resources_per_worker, is_train=False, env_kwargs=env_kwargs,
+        resources_per_worker=resources_per_worker, is_train=False, env_kwargs=val_env_kwargs,
     )
     val_envs = SkillRiseSciWorldEnvironmentManager(_val_envs, projection_f, num_attempts, config,
                                                group_loader=None, task_mode='repeat',

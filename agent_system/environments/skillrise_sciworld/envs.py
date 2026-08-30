@@ -165,6 +165,14 @@ class SkillRiseSciWorldEnvs(gym.Env):
 
         self._last_idx = None
         self.prev_admissible_commands = ['' for _ in range(self.num_processes)]
+        # EX: explicit pinned held-out task list for val (overrides pool sampling).
+        self._val_pairs = None
+        if not self.is_train:
+            vp = env_kwargs.get('val_pairs') if env_kwargs else None
+            if vp is not None:
+                assert len(vp) == self.num_processes, \
+                    f"#val_pairs({len(vp)}) != num_processes({self.num_processes})"
+                self._val_pairs = [(int(p[0]), int(p[1])) for p in vp]
 
     @property
     def get_admissible_commands(self):
@@ -181,6 +189,10 @@ class SkillRiseSciWorldEnvs(gym.Env):
 
     # ---- val repeat mode: pool sample + same-task retry ----------------- #
     def reset(self):
+        if self._val_pairs is not None:
+            # EX: explicit pinned held-out task list.
+            self._last_idx = self._val_pairs
+            return self.load_games(self._val_pairs)
         idx = self._rng.choice(self.variation_idxs, size=self.env_num, replace=False)
         idx = np.repeat(idx, self.group_n).tolist()
         self._last_idx = idx
@@ -189,6 +201,10 @@ class SkillRiseSciWorldEnvs(gym.Env):
 
     def restart(self):
         assert self._last_idx is not None, "restart() called before reset()"
+        if self._val_pairs is not None:
+            futures = [w.load_game.remote(int(p[0]), int(p[1]))
+                       for w, p in zip(self._workers, self._last_idx)]
+            return self._collect_reset(futures)
         futures = [w.reset.remote(i) for w, i in zip(self._workers, self._last_idx)]
         return self._collect_reset(futures)
 

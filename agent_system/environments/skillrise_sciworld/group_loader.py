@@ -47,3 +47,12 @@ class GroupLoader:
             batch.append(self.groups[self._cursor % len(self.groups)])
             self._cursor += 1
         return batch
+
+    def get_group(self, group_id: str) -> Dict:
+        """EX: return the group with the given id and make it the only one served."""
+        for g in self.groups:
+            if g["group_id"] == group_id:
+                self.groups = [g]
+                self._cursor = 0
+                return g
+        raise KeyError(f"group_id not found: {group_id}")

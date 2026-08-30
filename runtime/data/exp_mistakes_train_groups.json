@@ -1,0 +1,16 @@
+{
+  "groups": [
+    {
+      "group_id": "measure-melting-point-unknown-substance_K3_0",
+      "task_type": "measure-melting-point-unknown-substance"
+    },
+    {
+      "group_id": "find-plant_K3_0",
+      "task_type": "find-plant"
+    },
+    {
+      "group_id": "inclined-plane-friction-named-surfaces_K3_0",
+      "task_type": "inclined-plane-friction-named-surfaces"
+    }
+  ]
+}

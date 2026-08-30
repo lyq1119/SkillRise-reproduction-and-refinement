@@ -1,0 +1,64 @@
+{
+  "val": [
+    {
+      "task_id": 15,
+      "variation": 1017,
+      "task_type": "inclined-plane-friction-named-surfaces"
+    },
+    {
+      "task_id": 21,
+      "variation": 171,
+      "task_type": "measure-melting-point-unknown-substance"
+    },
+    {
+      "task_id": 8,
+      "variation": 156,
+      "task_type": "find-plant"
+    },
+    {
+      "task_id": 6,
+      "variation": 183,
+      "task_type": "find-living-thing"
+    },
+    {
+      "task_id": 19,
+      "variation": 64,
+      "task_type": "lifespan-shortest-lived"
+    },
+    {
+      "task_id": 2,
+      "variation": 19,
+      "task_type": "chemistry-mix"
+    },
+    {
+      "task_id": 8,
+      "variation": 162,
+      "task_type": "find-plant"
+    },
+    {
+      "task_id": 21,
+      "variation": 216,
+      "task_type": "measure-melting-point-unknown-substance"
+    },
+    {
+      "task_id": 15,
+      "variation": 985,
+      "task_type": "inclined-plane-friction-named-surfaces"
+    },
+    {
+      "task_id": 6,
+      "variation": 202,
+      "task_type": "find-living-thing"
+    },
+    {
+      "task_id": 19,
+      "variation": 77,
+      "task_type": "lifespan-shortest-lived"
+    },
+    {
+      "task_id": 2,
+      "variation": 17,
+      "task_type": "chemistry-mix"
+    }
+  ]
+}

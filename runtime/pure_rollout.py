@@ -287,6 +287,15 @@ def main():
                          "{\"train\": [skill, ...], \"val\": [skill, ...]} "
                          "built by runtime/build_round2_seed.py; seeds env "
                          "rows with round-1 skills (+lessons) instead of ''")
+    ap.add_argument("--group-id", default=None,
+                    help="EX: run only this group_id from the group file "
+                         "(e.g. measure-melting-point-unknown-substance_K3_0)")
+    ap.add_argument("--val-tasks", default=None,
+                    help="EX: JSON file {\"val\": [{task_id, variation, task_type}]} "
+                         "with an explicit pinned held-out task list (replaces "
+                         "seed-sampled val tasks)")
+    ap.add_argument("--rollout-n", type=int, default=None,
+                    help="EX: override env.rollout.n (group rollout samples)")
     args = ap.parse_args()
     output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -307,18 +316,27 @@ def main():
                 "before engine init to avoid a corrupted run. Re-run when API "
                 "is stable.")
 
+    val_pairs = None
+    val_batch_size = 8
+    if args.val_tasks:
+        val_pairs = [(r["task_id"], r["variation"]) for r in
+                     json.loads(Path(args.val_tasks).read_text())["val"]]
+        val_batch_size = len(val_pairs)
+
     cfg = OmegaConf.create({
-        "data": {"train_batch_size": 1, "val_batch_size": 8,
+        "data": {"train_batch_size": 1, "val_batch_size": val_batch_size,
                  "max_prompt_length": 10240, "max_response_length": 1024,
                  "truncation": "error", "return_raw_chat": True},
         "model": {"enable_thinking": False},
         "algorithm": {"step_gamma": 0.95, "traj_gamma": 0.6},
         "env": {"env_name": "skillrise_sciworld", "seed": 0,
                 "max_steps": 30, "max_turns": 30, "num_attempts": 3,
-                "rollout": {"n": 8}, "simplifications_preset": "easy",
+                "rollout": {"n": args.rollout_n or 8}, "simplifications_preset": "easy",
                 "resources_per_worker": {"num_cpus": 0.1},
                 "max_env_per_rollout": 8, "meta_mode": "skillrise",
-                "group_file": str(Path(args.group_file).resolve())},
+                "group_file": str(Path(args.group_file).resolve()),
+                **({"group_id": args.group_id} if args.group_id else {}),
+                **({"val_pairs": val_pairs} if val_pairs else {})},
         "trainer": {"rollout_data_dir": str(output_dir / "rollouts")},
         "inference": {"model_path": str(Path(args.model).resolve()),
                       "tensor_parallel_size": args.tensor_parallel_size,
@@ -332,7 +350,11 @@ def main():
                          "no_training": True},
     })
     OmegaConf.save(cfg, output_dir / "resolved_config.yaml", resolve=True)
-    group = GroupLoader(cfg.env.group_file, 1, seed=0).next_batch()[0]
+    loader = GroupLoader(cfg.env.group_file, 1, seed=0)
+    if cfg.env.get("group_id"):
+        group = loader.get_group(cfg.env.group_id)
+    else:
+        group = loader.next_batch()[0]
     (output_dir / "selected_group.json").write_text(json.dumps(group, indent=2, ensure_ascii=False) + "\n")
 
     tokenizer = AutoTokenizer.from_pretrained(args.model, local_files_only=True, trust_remote_code=True)
@@ -363,7 +385,7 @@ def main():
         train_path = output_dir / "rollouts" / "traj_logs" / "train" / "rollout_000000.jsonl"
         train_path.parent.mkdir(parents=True, exist_ok=True)
         val_path.replace(train_path)
-        _, val_logs = collector.multi_turn_loop(initial_batch(8, tokenizer, validate=True), policy, val_envs, is_train=False)
+        _, val_logs = collector.multi_turn_loop(initial_batch(val_batch_size, tokenizer, validate=True), policy, val_envs, is_train=False)
         # Reconstruct cumulative official pass@k directly from the exported per-attempt rewards.
         rewards = [[float(x.strip()) for x in log["reward"].strip("[]").split(",")] for log in val_logs]
         success = {f"pass@{k}": [any(r[:k]) for r in rewards] for k in (1, 2, 3)}
