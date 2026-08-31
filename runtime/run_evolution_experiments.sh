@@ -43,7 +43,8 @@ run_group() { # $1=state $2=gid $3=seed
     echo "[run] running $gid"
     local outdir
     outdir=$(bash runtime/run_pure_rollout.sh --group-id "$gid" --val-tasks "$VAL_TASKS" \
-        --rollout-n "$ROLLOUT_N" $CURATE_FLAG --seed-file "$seed" 2>&1 | tail -1)
+        --rollout-n "$ROLLOUT_N" $CURATE_FLAG --seed-file "$seed" \
+        --val-splits "${VAL_SPLITS:-2}" 2>&1 | tail -1)
     [ -f "$outdir/manifest.json" ] || { echo "[fatal] no manifest: $outdir"; exit 1; }
     echo "$gid|$outdir" >> "$state"
 }
