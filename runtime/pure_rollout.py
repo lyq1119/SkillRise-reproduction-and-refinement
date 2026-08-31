@@ -49,7 +49,11 @@ def load_env(env_path: Path) -> dict:
 
 
 def inference_worker(rank, conn, model_path, response_length, gpu_memory_utilization, max_model_len):
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(rank)
+    # Pick the rank-th GPU from the parent's CUDA_VISIBLE_DEVICES list so the
+    # worker maps correctly even when the parent restricts to non-zero GPUs
+    # (e.g. GPUS=4,5,6,7); rank maps to the rank-th entry.
+    _gpus = [g for g in os.environ.get("CUDA_VISIBLE_DEVICES", "").split(",") if g.strip()]
+    os.environ["CUDA_VISIBLE_DEVICES"] = _gpus[rank] if rank < len(_gpus) else str(rank)
     from vllm import LLM, SamplingParams
     engine = LLM(
         model=model_path, tokenizer=model_path, tensor_parallel_size=1,
