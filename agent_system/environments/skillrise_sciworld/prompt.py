@@ -27,7 +27,7 @@ Your admissible actions of the current situation are:
 {available_actions}
 ].
 
-Now it's your turn to take one action for the current step.
+{action_guidance}
 You should first reason step-by-step about the current situation, then think carefully which admissible action best advances the task goal.
 Once you've finished your reasoning, you should choose an admissible action for current step and present it within <action> </action> tags."""
 
@@ -68,6 +68,18 @@ CURR_TRAJ_TEMPLATE = """
 Prior to this step, the actions you took and the corresponding observations are:
 {current_trajectory}"""
 
+# EX/agent-side: working-memory block. When enabled, the agent must restate a
+# verified task state before acting. Targets the observed failure modes
+# (repeated navigation loops, forgetting the goal / held object), which show
+# up as low T2 (task progress) / T4 (state coverage) scores.
+WORKING_MEMORY_BLOCK = """
+## Task State (restate before acting)
+Before choosing an action, restate the current task state as exactly three short lines:
+1. VERIFIED: <facts confirmed by the current observation and your recent actions>
+2. REMAINING: <what still needs to be done to complete the task>
+3. STATE: <your current location, the object you are focused on, and anything you are holding>
+Base these lines ONLY on what the observation actually shows; never invent state."""
+
 
 def _format_skill(skill: str) -> str:
     skill = (skill or "").strip()
@@ -81,19 +93,23 @@ def get_skillrise_sciworld_prompt(phase: str = 'play',
                               current_trajectory: str = '',
                               available_actions: str = '',
                               skill: str = '',
-                              won: bool = False):
+                              won: bool = False,
+                              working_memory: bool = False):
     assert phase in ['play', 'curate']
     skill_document = _format_skill(skill)
 
     if phase == 'play':
         traj = ("" if turn_idx == 0
                 else CURR_TRAJ_TEMPLATE.format(current_trajectory=current_trajectory))
+        action_guidance = (WORKING_MEMORY_BLOCK if working_memory else
+                           "\nNow it's your turn to take one action for the current step.")
         return SCIWORLD_SOLVE_PROMPT.format(
             skill_document=skill_document,
             task_description=task_description,
             current_observation=current_observation,
             current_trajectory=traj,
             available_actions=available_actions,
+            action_guidance=action_guidance,
         ).strip()
     else:
         outcome = "SUCCESS" if won else "FAILURE (task not fully completed)"

@@ -305,6 +305,9 @@ def main():
                     help="EX/async: run the val batch as N sub-batches in threads, "
                          "each on a disjoint worker subset, so one split's DeepSeek "
                          "curate / env steps overlap another split's GPU generation")
+    ap.add_argument("--working-memory", action="store_true",
+                    help="EX/agent-side: add a verified task-state restatement block "
+                         "to the solve prompt (targets loops / forgetting)")
     args = ap.parse_args()
     output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -345,6 +348,7 @@ def main():
                 "max_env_per_rollout": 8, "meta_mode": "skillrise",
                 "group_file": str(Path(args.group_file).resolve()),
                 "val_splits": args.val_splits,
+                "working_memory": args.working_memory,
                 **({"group_id": args.group_id} if args.group_id else {}),
                 **({"val_pairs": val_pairs} if val_pairs else {})},
         "trainer": {"rollout_data_dir": str(output_dir / "rollouts")},

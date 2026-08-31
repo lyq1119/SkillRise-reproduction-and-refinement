@@ -58,6 +58,8 @@ class SkillRiseSciWorldEnvironmentManager(EnvironmentManagerBase):
         self.skills = ['' for _ in range(self.num_processes)]
         self.curate_history_length = config.env.get('curate_history_length', 30)
         self.play_history_length = config.env.get('history_length', 15)
+        # EX/agent-side: restate verified task state before each action.
+        self.working_memory = bool(config.env.get('working_memory', False))
         self.curr_turn_idx = 0
         self.curr_pos = 0
         self.max_turns = config.env.get('max_turns', 30)
@@ -209,6 +211,7 @@ class SkillRiseSciWorldEnvironmentManager(EnvironmentManagerBase):
                     current_trajectory=curr_trajs[i],
                     available_actions=self.envs.get_admissible_commands[i],
                     skill=self.skills[i],
+                    working_memory=self.working_memory,
                 )
             else:  # curate
                 won_i = self._row_won(i, self.curr_pos)
