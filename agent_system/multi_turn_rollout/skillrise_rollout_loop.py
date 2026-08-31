@@ -293,6 +293,7 @@ class TrajectoryCollector:
             gen_batch: DataProto, 
             actor_rollout_wg, 
             envs,
+            worker_slots=None,
             ) -> DataProto:
         """
         Collects trajectories through parallel agent-environment agent_loop.
@@ -414,7 +415,7 @@ class TrajectoryCollector:
                 batch_input.meta_info = gen_batch.meta_info
                 batch_input.non_tensor_batch['active_masks'] = active_masks
 
-                batch_output = actor_rollout_wg.generate_sequences_agent(batch_input)
+                batch_output = actor_rollout_wg.generate_sequences_agent(batch_input, worker_slots=worker_slots)
 
                 batch.non_tensor_batch['uid'] = uid_batch
                 batch.non_tensor_batch['traj_uid'] = traj_uid
@@ -488,6 +489,7 @@ class TrajectoryCollector:
             actor_rollout_wg, 
             envs,
             is_train: bool = True,
+            worker_slots=None,
             ) -> DataProto:
         """
         Select and run the appropriate rollout loop (dynamic or vanilla).
@@ -522,6 +524,7 @@ class TrajectoryCollector:
                     gen_batch=chunk_gen,
                     actor_rollout_wg=actor_rollout_wg,
                     envs=envs,
+                    worker_slots=worker_slots,
                 )
             total_batch_list.extend(c_batch_list)
             traj_cot_logs.extend(c_cot_logs)

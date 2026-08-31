@@ -341,17 +341,29 @@ def make_envs(config):
     envs.groups_per_chunk = groups_per_chunk
 
     # VAL: repeat mode (same held-out task retried K times from the test split).
-    val_env_kwargs = dict(env_kwargs)
-    if config.env.get('val_pairs'):
-        # EX: explicit pinned held-out task list instead of seed-sampling.
-        val_env_kwargs['val_pairs'] = [
-            [int(t[0]), int(t[1])] for t in config.env.val_pairs]
-    _val_envs = build_skillrise_sciworld_envs(
-        seed=config.env.seed + 1000, env_num=config.data.val_batch_size, group_n=1,
-        resources_per_worker=resources_per_worker, is_train=False, env_kwargs=val_env_kwargs,
-    )
-    val_envs = SkillRiseSciWorldEnvironmentManager(_val_envs, projection_f, num_attempts, config,
-                                               group_loader=None, task_mode='repeat',
-                                               group_n_override=1)
-    val_envs.groups_per_chunk = config.data.val_batch_size
-    return envs, val_envs
+    # EX/async: val_splits > 1 builds several sub-managers (sub-batch pipeline)
+    # so one split's DeepSeek curate / env steps overlap another split's GPU
+    # generation. Each split gets an equal slice of val_pairs / val seed.
+    val_splits = int(config.env.get('val_splits', 1))
+    val_n = int(config.data.val_batch_size)
+    assert val_n % val_splits == 0, f"val_batch_size {val_n} % val_splits {val_splits}"
+    split_n = val_n // val_splits
+    val_pairs_all = config.env.get('val_pairs')
+    val_envs_list = []
+    for s in range(val_splits):
+        split_env_kwargs = dict(env_kwargs)
+        if val_pairs_all is not None:
+            pairs = val_pairs_all[s * split_n:(s + 1) * split_n]
+            split_env_kwargs['val_pairs'] = [
+                [int(t[0]), int(t[1])] for t in pairs]
+        _val_envs = build_skillrise_sciworld_envs(
+            seed=config.env.seed + 1000 + s, env_num=split_n, group_n=1,
+            resources_per_worker=resources_per_worker, is_train=False,
+            env_kwargs=split_env_kwargs,
+        )
+        v = SkillRiseSciWorldEnvironmentManager(
+            _val_envs, projection_f, num_attempts, config,
+            group_loader=None, task_mode='repeat', group_n_override=1)
+        v.groups_per_chunk = split_n
+        val_envs_list.append(v)
+    return envs, val_envs_list

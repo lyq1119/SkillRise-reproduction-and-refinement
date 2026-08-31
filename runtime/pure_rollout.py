@@ -151,7 +151,7 @@ class InferenceOnlyPolicy:
         return ""
 
     @torch.inference_mode()
-    def generate_sequences_agent(self, prompts):
+    def generate_sequences_agent(self, prompts, worker_slots=None):
         active = prompts.non_tensor_batch["active_masks"]
         raw_ids = prompts.non_tensor_batch["raw_prompt_ids"]
         validate = bool(prompts.meta_info.get("validate", False))
@@ -174,14 +174,15 @@ class InferenceOnlyPolicy:
                 for i, token_ids in ex.map(_one, active_indices):
                     generated[i] = token_ids
         else:
-            # EX: val batches can exceed data_parallel_size (e.g. 12 pinned val
-            # tasks vs 8 workers) — chunk the active rows across the workers.
-            for start in range(0, len(active_indices), len(self.workers)):
-                chunk = active_indices[start:start + len(self.workers)]
-                for slot, i in enumerate(chunk):
-                    self.workers[slot][1].send((i, raw_ids[i], validate))
-                for slot, _ in enumerate(chunk):
-                    i, token_ids = self.workers[slot][1].recv()
+            # worker_slots: a disjoint worker subset per async val split; None = all.
+            slots = worker_slots if worker_slots is not None else list(range(len(self.workers)))
+            # EX: val batches can exceed the worker count — chunk the active rows.
+            for start in range(0, len(active_indices), len(slots)):
+                chunk = active_indices[start:start + len(slots)]
+                for j, i in enumerate(chunk):
+                    self.workers[slots[j]][1].send((i, raw_ids[i], validate))
+                for j, _ in enumerate(chunk):
+                    i, token_ids = self.workers[slots[j]][1].recv()
                     generated[i] = token_ids
 
         rows = [generated.get(i, []) for i in range(len(active))]
@@ -300,6 +301,10 @@ def main():
                          "seed-sampled val tasks)")
     ap.add_argument("--rollout-n", type=int, default=None,
                     help="EX: override env.rollout.n (group rollout samples)")
+    ap.add_argument("--val-splits", type=int, default=1,
+                    help="EX/async: run the val batch as N sub-batches in threads, "
+                         "each on a disjoint worker subset, so one split's DeepSeek "
+                         "curate / env steps overlap another split's GPU generation")
     args = ap.parse_args()
     output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -339,6 +344,7 @@ def main():
                 "resources_per_worker": {"num_cpus": 0.1},
                 "max_env_per_rollout": 8, "meta_mode": "skillrise",
                 "group_file": str(Path(args.group_file).resolve()),
+                "val_splits": args.val_splits,
                 **({"group_id": args.group_id} if args.group_id else {}),
                 **({"val_pairs": val_pairs} if val_pairs else {})},
         "trainer": {"rollout_data_dir": str(output_dir / "rollouts")},
@@ -374,13 +380,16 @@ def main():
         gpu_memory_utilization=args.gpu_memory_utilization,
         max_model_len=cfg.inference.max_model_len,
         curate_via_api=args.curate_via_api, api_env=api_env)
-    envs, val_envs = make_envs(cfg)
+    envs, val_envs_list = make_envs(cfg)
     if args.seed_file:
         seed = json.loads(Path(args.seed_file).read_text())
         envs.initial_skills = seed.get("train", [])
-        val_envs.initial_skills = seed.get("val", [])
+        val_seed = seed.get("val", [])
+        n = len(val_envs_list[0].initial_skills)
+        for s, ve in enumerate(val_envs_list):
+            ve.initial_skills = val_seed[s * n:(s + 1) * n]
         print(f"[d1] seeded train rows={len(envs.initial_skills)} "
-              f"val rows={len(val_envs.initial_skills)} from {args.seed_file}")
+              f"val rows={len(val_seed)} (splits={len(val_envs_list)}) from {args.seed_file}")
     started = time.time()
     try:
         _, train_logs = collector.multi_turn_loop(initial_batch(1, tokenizer, validate=False), policy, envs, is_train=False)
@@ -389,7 +398,32 @@ def main():
         train_path = output_dir / "rollouts" / "traj_logs" / "train" / "rollout_000000.jsonl"
         train_path.parent.mkdir(parents=True, exist_ok=True)
         val_path.replace(train_path)
-        _, val_logs = collector.multi_turn_loop(initial_batch(val_batch_size, tokenizer, validate=True), policy, val_envs, is_train=False)
+
+        if len(val_envs_list) == 1:
+            _, val_logs = collector.multi_turn_loop(
+                initial_batch(val_batch_size, tokenizer, validate=True),
+                policy, val_envs_list[0], is_train=False)
+        else:
+            # EX/async: run each val split on a disjoint worker subset in its own
+            # thread — one split's DeepSeek curate / env steps overlap the other
+            # split's GPU generation, keeping the GPUs busy.
+            from concurrent.futures import ThreadPoolExecutor
+            splits = len(val_envs_list)
+            k = args.data_parallel_size // splits
+            val_logs = [None] * val_batch_size
+            def run_split(s):
+                ve = val_envs_list[s]
+                n = ve.groups_per_chunk
+                slots = list(range(s * k, (s + 1) * k))
+                _, logs = collector.multi_turn_loop(
+                    initial_batch(n, tokenizer, validate=True),
+                    policy, ve, is_train=False, worker_slots=slots)
+                return s, logs
+            with ThreadPoolExecutor(max_workers=splits) as ex:
+                for s, logs in ex.map(run_split, range(splits)):
+                    sl = val_batch_size // splits
+                    val_logs[s * sl:(s + 1) * sl] = logs
+
         # Reconstruct cumulative official pass@k directly from the exported per-attempt rewards.
         rewards = [[float(x.strip()) for x in log["reward"].strip("[]").split(",")] for log in val_logs]
         success = {f"pass@{k}": [any(r[:k]) for r in rewards] for k in (1, 2, 3)}
@@ -397,7 +431,8 @@ def main():
         write_manifest(output_dir, group, started, finished, train_logs, val_logs, success)
     finally:
         envs.close()
-        val_envs.close()
+        for ve in val_envs_list:
+            ve.close()
         policy.close()
         ray.shutdown()
 
