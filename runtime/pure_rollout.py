@@ -385,7 +385,7 @@ def main():
         seed = json.loads(Path(args.seed_file).read_text())
         envs.initial_skills = seed.get("train", [])
         val_seed = seed.get("val", [])
-        n = len(val_envs_list[0].initial_skills)
+        n = val_envs_list[0].num_processes  # rows per split
         for s, ve in enumerate(val_envs_list):
             ve.initial_skills = val_seed[s * n:(s + 1) * n]
         print(f"[d1] seeded train rows={len(envs.initial_skills)} "
