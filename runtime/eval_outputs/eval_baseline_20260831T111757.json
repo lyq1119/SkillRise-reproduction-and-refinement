@@ -1,0 +1,132 @@
+{
+  "schema": "skillrise-data-quality-eval-v1",
+  "data_dir": "/data/lanyuqi/skillrise/runtime/outputs/pure_rollout/qwen3.5-9b_sciworld_group0_seed0_20260830T214040+0800",
+  "split_scored": "train",
+  "judge_model": "deepseek-chat",
+  "rubric": {
+    "trajectory": "You are a strict data-quality judge for ScienceWorld agent trajectories. Score each trajectory on 4 dimensions as an integer 0-5. Be consistent and conservative: 3 = acceptable, 5 = excellent, 0 = broken.\n\nDimensions:\n- T1 executability: the actions are valid, grammatically correct ScienceWorld commands the environment would accept.\n- T2 task progress: the action sequence advances toward completing the task; for a failed trajectory, early steps should still be reasonable exploration toward the goal.\n- T3 diversity: actions are not repetitive or looping; the agent explores meaningfully.\n- T4 state coverage: the agent inspects relevant locations/objects and reacts to observations.\n\nReturn ONLY a JSON object, no other text: {\"T1\": <int>, \"T2\": <int>, \"T3\": <int>, \"T4\": <int>}\n",
+    "skill": "You are a strict data-quality judge for distilled skill documents in ScienceWorld. Score each skill on 5 dimensions as an integer 0-5. Be consistent and conservative: 3 = acceptable, 5 = excellent, 0 = broken.\n\nDimensions:\n- S1 structure: has clear sections (e.g. \"When to use\" / \"Workflow\" / \"Pitfalls\"), well organized.\n- S2 abstraction: generalizes beyond the specific task instance (does not overfit to specific object names, room names, or numbers).\n- S3 correctness: statements are plausible, actionable, and grounded in the observed trajectory (no invented steps).\n- S4 transferability: would plausibly help solving a related task of the same family.\n- S5 conciseness: concise, no verbatim trajectory copy, no filler.\n\nReturn ONLY a JSON object, no other text: {\"S1\": <int>, \"S2\": <int>, \"S3\": <int>, \"S4\": <int>, \"S5\": <int>}\n"
+  },
+  "structural": {
+    "n_train_trajectories": 3,
+    "n_val_trajectories": 12,
+    "skill_total": 6,
+    "skill_parse_rate": 1.0,
+    "skill_parse_failures": 0,
+    "skill_structure_complete_rate": 1.0,
+    "skill_real_doc_avg_len": 1067.7,
+    "train_solved_any_rate": 0.6667,
+    "train_action_diversity": 0.7551
+  },
+  "trajectory_scores": [
+    {
+      "traj_idx": 0,
+      "scores": {
+        "T1": 2,
+        "T2": 1,
+        "T3": 2,
+        "T4": 2
+      }
+    },
+    {
+      "traj_idx": 1,
+      "scores": {
+        "T1": 2,
+        "T2": 2,
+        "T3": 2,
+        "T4": 2
+      }
+    },
+    {
+      "traj_idx": 2,
+      "scores": {
+        "T1": 5,
+        "T2": 1,
+        "T3": 2,
+        "T4": 2
+      }
+    }
+  ],
+  "skill_scores": [
+    {
+      "traj_idx": 0,
+      "after_task_pos": 0,
+      "scores": {
+        "S1": 3,
+        "S2": 4,
+        "S3": 3,
+        "S4": 4,
+        "S5": 4
+      }
+    },
+    {
+      "traj_idx": 0,
+      "after_task_pos": 1,
+      "scores": {
+        "S1": 3,
+        "S2": 4,
+        "S3": 4,
+        "S4": 4,
+        "S5": 4
+      }
+    },
+    {
+      "traj_idx": 1,
+      "after_task_pos": 0,
+      "scores": {
+        "S1": 3,
+        "S2": 4,
+        "S3": 3,
+        "S4": 4,
+        "S5": 4
+      }
+    },
+    {
+      "traj_idx": 1,
+      "after_task_pos": 1,
+      "scores": {
+        "S1": 3,
+        "S2": 4,
+        "S3": 3,
+        "S4": 4,
+        "S5": 4
+      }
+    },
+    {
+      "traj_idx": 2,
+      "after_task_pos": 0,
+      "scores": {
+        "S1": 3,
+        "S2": 3,
+        "S3": 3,
+        "S4": 3,
+        "S5": 4
+      }
+    },
+    {
+      "traj_idx": 2,
+      "after_task_pos": 1,
+      "scores": {
+        "S1": 4,
+        "S2": 4,
+        "S3": 4,
+        "S4": 4,
+        "S5": 4
+      }
+    }
+  ],
+  "trajectory_means": {
+    "T1": 3.0,
+    "T2": 1.333,
+    "T3": 2.0,
+    "T4": 2.0
+  },
+  "skill_means": {
+    "S1": 3.167,
+    "S2": 3.833,
+    "S3": 3.333,
+    "S4": 3.833,
+    "S5": 4.0
+  },
+  "git_commit": "5b564fc703b1ba8538292b897793cf3bb8fba33e"
+}
