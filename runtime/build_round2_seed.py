@@ -58,6 +58,14 @@ def main():
     ap.add_argument("--val-tasks-file", default=None,
                     help="EX: pinned val task list JSON {val: [{task_id, variation, task_type}]} "
                          "(row order must match the run's val rollout order)")
+    ap.add_argument("--merged-skills-file", default=None,
+                    help="EX: merged+validated skills JSON {type: {skill, score, status}} "
+                         "built by merge_validate_skills.py; injected per type into val "
+                         "(and train) seed entries")
+    ap.add_argument("--merge-mode", choices=["replace", "stack"], default=None,
+                    help="EX: replace -> merged skill substitutes the r1 val online skill; "
+                         "stack -> merged skill appended to it. Only applies to types present "
+                         "in the merged-skills file.")
     args = ap.parse_args()
 
     data_dir = Path(args.data_dir).resolve()
@@ -70,13 +78,19 @@ def main():
     if args.mistakes_bank:
         bank = json.loads(Path(args.mistakes_bank).read_text()).get("common_mistakes", {})
     group_type = None
-    if args.mistakes_bank:
+    if args.mistakes_bank or args.merged_skills_file:
         sel = json.loads((data_dir / "selected_group.json").read_text())
         group_type = sel["task_type"]
     val_types = []
     if args.val_tasks_file:
         val_types = [r["task_type"] for r in
                      json.loads(Path(args.val_tasks_file).read_text())["val"]]
+
+    merged_skills = {}
+    if args.merged_skills_file:
+        ms = json.loads(Path(args.merged_skills_file).read_text())
+        merged_skills = {t: v["skill"] for t, v in ms.items()
+                         if v.get("status", "") != "dropped" and v.get("skill")}
 
     def fmt_mistakes(type_: str) -> str:
         ms = bank.get(type_, [])
@@ -89,10 +103,17 @@ def main():
                 lines.append(f"   -> {m['how_to_avoid']}")
         return "\n".join(lines)
 
-    def build(logs, lessons, per_row_mistakes_type):
+    def build(logs, lessons, per_row_mistakes_type, merged_row=None):
+        # merged_row: per-row merged skill ("" = none). replace mode uses it in
+        # place of the online skill; stack mode appends it to the online skill.
         out = []
         for i, log in enumerate(logs):
             skill = latest_parsed_skill(log)
+            mg = merged_row[i] if merged_row else ""
+            if args.merge_mode == "replace" and mg:
+                skill = mg
+            elif args.merge_mode == "stack" and mg:
+                skill = f"{skill}\n\n{mg}" if skill else mg
             lesson = lessons[i].get("episode_skill", "") if i < len(lessons) else ""
             mt = None
             if per_row_mistakes_type:
@@ -100,10 +121,18 @@ def main():
             out.append(compose(skill, lesson, mt or ""))
         return out
 
+    train_merged = None
+    if args.merge_mode and merged_skills.get(group_type):
+        train_merged = [merged_skills[group_type]] * len(train)
+    val_merged = None
+    if args.merge_mode and val_types:
+        val_merged = [merged_skills.get(t, "") for t in val_types]
+
     seed = {
         "train": build(train, train_lessons,
-                       [group_type] * len(train) if group_type else None),
-        "val": build(val, val_lessons, val_types if val_types else None),
+                       [group_type] * len(train) if group_type else None,
+                       train_merged),
+        "val": build(val, val_lessons, val_types if val_types else None, val_merged),
     }
     out_path = Path(args.out).resolve()
     out_path.parent.mkdir(parents=True, exist_ok=True)
